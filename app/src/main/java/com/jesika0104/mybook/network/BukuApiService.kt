@@ -1,11 +1,18 @@
 package com.jesika0104.mybook.network
 
 import com.jesika0104.mybook.model.Buku
+import com.jesika0104.mybook.model.OpStatus
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
 
 private const val BASE_URL = "https://store.sthresearch.site/"
 
@@ -21,6 +28,15 @@ private val retrofit = Retrofit.Builder()
 interface BukuApiService {
     @GET("mybook.php")
     suspend fun getBuku(): List<Buku>
+
+    @Multipart
+    @POST("mybook.php")
+    suspend fun postBuku(
+        @Header("Authorization") userId: String,
+        @Part("judul") judul: RequestBody,
+        @Part("penulis") penulis: RequestBody,
+        @Part image: MultipartBody.Part
+    ): OpStatus
 }
 
 object BukuApi {

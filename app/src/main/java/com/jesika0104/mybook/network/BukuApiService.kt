@@ -32,3 +32,5 @@ object BukuApi {
         return "${BASE_URL}image.php?id=$imageId"
     }
 }
+
+enum class ApiStatus { LOADING, SUCCESS }

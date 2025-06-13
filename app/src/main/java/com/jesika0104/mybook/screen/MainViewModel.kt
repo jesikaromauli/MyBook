@@ -34,12 +34,13 @@ class MainViewModel : ViewModel() {
                 data.value = BukuApi.service.getBuku(userId)
                 status.value = ApiStatus.SUCCESS
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failure: ${e.message}")
+                Log.d("MainViewModel", "Failure: ${e.message}")
                 status.value = ApiStatus.FAILED
             }
         }
     }
-    fun saveData(userId: String, judul: String, penulis: String, bitmap: Bitmap) {
+
+    fun saveData(userId: String, judul: String, penulis: String, bitmap: Bitmap){
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = BukuApi.service.postBuku(
@@ -51,6 +52,23 @@ class MainViewModel : ViewModel() {
 
                 if (result.status == "success")
                     retrieveData(userId)
+                else {
+                    throw Exception(result.message)
+                }
+            } catch (e:Exception) {
+                Log.d("MainViewModel", "Failure: ${e.message}")
+                errorMessage.value = "Error: ${e.message}"
+            }
+        }
+    }
+
+    fun deleteData(userId: String, id: String) {
+        viewModelScope.launch(Dispatchers.IO){
+            try {
+                val result = BukuApi.service.deleteBuku(userId, id)
+                if (result.status == "success")
+                    retrieveData(userId)
+
                 else
                     throw Exception(result.message)
             } catch (e: Exception) {
@@ -59,6 +77,7 @@ class MainViewModel : ViewModel() {
             }
         }
     }
+
     private fun Bitmap.toMultipartBody(): MultipartBody.Part {
         val stream = ByteArrayOutputStream()
         compress(Bitmap.CompressFormat.JPEG, 80, stream)
@@ -66,9 +85,9 @@ class MainViewModel : ViewModel() {
         val requestBody = byteArray.toRequestBody(
             "image/jpg".toMediaTypeOrNull(), 0, byteArray.size)
         return MultipartBody.Part.createFormData(
-            "image", "image.jpg",requestBody
+            "image", "image.jpg", requestBody
         )
     }
 
-    fun clearMessage() { errorMessage.value = null }
+    fun clearMessage() { errorMessage.value=null}
 }

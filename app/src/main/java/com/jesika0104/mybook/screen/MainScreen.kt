@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,10 +97,12 @@ fun MainScreen() {
 
     var showDialog by remember { mutableStateOf(false) }
     var showBukuDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var seletedBuku by remember { mutableStateOf<Buku?>(null) }
 
     var bitmap: Bitmap? by remember { mutableStateOf(null) }
     val launcher = rememberLauncherForActivityResult(CropImageContract()) {
-        bitmap =  getCroppedImage(context.contentResolver, it)
+        bitmap = getCroppedImage(context.contentResolver, it)
         if (bitmap != null) showBukuDialog = true
     }
 
@@ -110,14 +114,13 @@ fun MainScreen() {
                 },
                 colors = TopAppBarDefaults.mediumTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
                     IconButton(onClick = {
                         if (user.email.isEmpty()) {
                             CoroutineScope(Dispatchers.IO).launch { signIn(context, dataStore) }
-                        }
-                        else {
+                        } else {
                             showDialog = true
                         }
                     }) {
@@ -132,14 +135,14 @@ fun MainScreen() {
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                val options = CropImageContractOptions(
+                val option = CropImageContractOptions(
                     null, CropImageOptions(
                         imageSourceIncludeGallery = false,
                         imageSourceIncludeCamera = true,
                         fixAspectRatio = true
                     )
                 )
-                launcher.launch(options)
+                launcher.launch(option)
             }) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -148,7 +151,14 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        ScreenContent(viewModel, user.email, Modifier.padding(innerPadding))
+        ScreenContent(
+            viewModel,
+            user.email,
+            Modifier.padding(innerPadding),
+            onDelete = { buku ->
+                seletedBuku = buku
+                showDeleteDialog = true
+            })
 
         if (showDialog) {
             ProfilDialog(
@@ -166,7 +176,15 @@ fun MainScreen() {
                 showBukuDialog = false
             }
         }
-
+        if (showDeleteDialog) {
+            DialogHapus(
+                onDismissRequest = { showDeleteDialog = false },
+                onConfirm = {
+                    seletedBuku?.let { viewModel.deleteData(user.email, it.id) }
+                    showDeleteDialog = false
+                }
+            )
+        }
         if (errorMessage != null) {
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
             viewModel.clearMessage()
@@ -175,7 +193,12 @@ fun MainScreen() {
 }
 
 @Composable
-fun ScreenContent(viewModel: MainViewModel, userId: String, modifier: Modifier = Modifier) {
+fun ScreenContent(
+    viewModel: MainViewModel,
+    userId: String,
+    modifier: Modifier = Modifier,
+    onDelete: (Buku) -> Unit
+) {
     val data by viewModel.data
     val status by viewModel.status.collectAsState()
 
@@ -183,7 +206,7 @@ fun ScreenContent(viewModel: MainViewModel, userId: String, modifier: Modifier =
         viewModel.retrieveData(userId)
     }
 
-    when(status) {
+    when (status) {
         ApiStatus.LOADING -> {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -195,11 +218,17 @@ fun ScreenContent(viewModel: MainViewModel, userId: String, modifier: Modifier =
 
         ApiStatus.SUCCESS -> {
             LazyVerticalGrid(
-                modifier = modifier.fillMaxSize().padding(4.dp),
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                items(data) { ListItem(buku = it) }
+                items(data) {
+                    ListItem(buku = it) {
+                        onDelete(it)
+                    }
+                }
             }
         }
 
@@ -223,10 +252,12 @@ fun ScreenContent(viewModel: MainViewModel, userId: String, modifier: Modifier =
 }
 
 @Composable
-fun ListItem(buku: Buku) {
+fun ListItem(buku: Buku, onDelete: () -> Unit) {
     Log.d("gambar", buku.imageId)
     Box(
-        modifier = Modifier.padding(4.dp).border(1.dp, Color.Gray),
+        modifier = Modifier
+            .padding(4.dp)
+            .border(1.dp, Color.Gray),
         contentAlignment = Alignment.BottomCenter
     ) {
         AsyncImage(
@@ -238,24 +269,42 @@ fun ListItem(buku: Buku) {
             contentScale = ContentScale.Crop,
             placeholder = painterResource(id = R.drawable.loading_img),
             error = painterResource(id = R.drawable.baseline_broken_image_24),
-            modifier = Modifier.fillMaxWidth().padding(4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
         )
         Column(
-            modifier = Modifier.fillMaxWidth().padding(4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
                 .background(Color(red = 0f, green = 0f, blue = 0f, alpha = 0.5f))
                 .padding(4.dp)
         ) {
-            Text(
-                text = buku.judul,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = buku.penulis,
-                fontStyle = FontStyle.Italic,
-                fontSize = 14.sp,
-                color = Color.White
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = buku.judul,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = buku.penulis,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                }
+                IconButton(onClick = { onDelete() }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.hapus),
+                        tint = Color.White
+                    )
+                }
+            }
         }
     }
 }
@@ -279,13 +328,11 @@ private suspend fun signIn(context: Context, dataStore: UserDataStore) {
     }
 }
 
-private suspend fun handleSignIn(
-    result: GetCredentialResponse,
-    dataStore: UserDataStore
-) {
+private suspend fun handleSignIn(result: GetCredentialResponse, dataStore: UserDataStore) {
     val credential = result.credential
     if (credential is CustomCredential &&
-        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+    ) {
         try {
             val googleId = GoogleIdTokenCredential.createFrom(credential.data)
             val nama = googleId.displayName ?: ""
@@ -295,8 +342,7 @@ private suspend fun handleSignIn(
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("SIGN-IN", "Error: ${e.message}")
         }
-    }
-    else {
+    } else {
         Log.e("SIGN-IN", "Error: unrecognized custom credential type.")
     }
 }
@@ -321,12 +367,12 @@ private fun getCroppedImage(
         Log.e("IMAGE", "Error: ${result.error}")
         return null
     }
-    val url = result.uriContent ?: return null
+    val uri = result.uriContent ?: return null
 
     return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-        MediaStore.Images.Media.getBitmap(resolver, url)
+        MediaStore.Images.Media.getBitmap(resolver, uri)
     } else {
-        val source = ImageDecoder.createSource(resolver, url)
+        val source = ImageDecoder.createSource(resolver, uri)
         ImageDecoder.decodeBitmap(source)
     }
 }

@@ -124,6 +124,7 @@ fun ListItem(buku: Buku) {
                 .build(),
             contentDescription = stringResource(R.string.gambar, buku.penulis),
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.loading_img),
             modifier = Modifier.fillMaxWidth().padding(4.dp)
         )
         Column(

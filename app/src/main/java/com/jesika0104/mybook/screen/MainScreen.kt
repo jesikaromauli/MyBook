@@ -3,7 +3,14 @@ package com.jesika0104.mybook.screen
 import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -16,22 +23,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.jesika0104.mybook.BuildConfig
 import com.jesika0104.mybook.R
+import com.jesika0104.mybook.model.Buku
 import com.jesika0104.mybook.model.User
+import com.jesika0104.mybook.network.BukuApi
 import com.jesika0104.mybook.network.UserDataStore
 import com.jesika0104.mybook.ui.theme.MyBookTheme
 import kotlinx.coroutines.CoroutineScope
@@ -81,11 +95,31 @@ fun MainScreen() {
 @Composable
 fun ScreenContent(modifier: Modifier = Modifier) {
     val viewModel: MainViewModel = viewModel()
+    val data by viewModel.data
 
-    Text(
-        text = "Hello Android",
-        modifier = modifier
-    )
+    LazyVerticalGrid(
+        modifier = modifier.fillMaxSize().padding(4.dp),
+        columns = GridCells.Fixed(2),
+    ) {
+        items(data) { ListItem(buku = it) }
+    }
+}
+
+@Composable
+fun ListItem(buku: Buku) {
+    Box(
+        modifier = Modifier.padding(4.dp).border(1.dp, Color.Gray)
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(BukuApi.getBukuUrl(buku.imageId))
+                .crossfade(true)
+                .build(),
+            contentDescription = stringResource(R.string.gambar, buku.penulis),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().padding(4.dp)
+        )
+    }
 }
 
 private suspend fun signIn(context: Context, dataStore: UserDataStore) {
